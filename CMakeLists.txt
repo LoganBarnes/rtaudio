@@ -120,6 +120,7 @@ add_library(rtaudio SHARED ${rtaudio_SOURCES})
 add_library(rtaudio_static STATIC ${rtaudio_SOURCES})
 
 target_link_libraries(rtaudio ${LINKLIBS})
+target_link_libraries(rtaudio_static ${LINKLIBS})
 
 if (BUILD_TESTING)
     add_subdirectory(tests)
