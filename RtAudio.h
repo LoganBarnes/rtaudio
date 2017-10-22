@@ -731,7 +731,7 @@ protected:
     OUTPUT,
     INPUT,
     DUPLEX,
-    CALLBACK,
+    CALLBACK_ONLY,
     UNINITIALIZED = -75
   };
 

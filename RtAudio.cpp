@@ -9518,8 +9518,8 @@ bool RtApiUnixCallback :: probeDeviceOpen( unsigned int /*device*/, StreamMode /
   stream_.state = STREAM_STOPPED;
 
   // Setup thread if necessary.
-  if ( stream_.mode != CALLBACK ) {
-    stream_.mode = CALLBACK;
+  if ( stream_.mode != CALLBACK_ONLY ) {
+    stream_.mode = CALLBACK_ONLY;
 
     // Setup callback thread.
     stream_.callbackInfo.object = this;
