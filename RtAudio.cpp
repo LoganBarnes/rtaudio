@@ -76,7 +76,8 @@ const unsigned int RtApi::SAMPLE_RATES[] = {
     return s;
   }
 
-#elif defined(__LINUX_ALSA__) || defined(__LINUX_PULSE__) || defined(__UNIX_JACK__) || defined(__LINUX_OSS__) || defined(__MACOSX_CORE__)
+#elif defined(__LINUX_ALSA__) || defined(__LINUX_PULSE__) || defined(__UNIX_JACK__) \
+   || defined(__LINUX_OSS__) || defined(__MACOSX_CORE__) || defined(__UNIX_CALLBACK_ONLY__)
   // pthread API
   #define MUTEX_INITIALIZE(A) pthread_mutex_init(A, NULL)
   #define MUTEX_DESTROY(A)    pthread_mutex_destroy(A)
@@ -128,6 +129,9 @@ void RtAudio :: getCompiledApi( std::vector<RtAudio::Api> &apis )
 #if defined(__MACOSX_CORE__)
   apis.push_back( MACOSX_CORE );
 #endif
+#if defined(__UNIX_CALLBACK_ONLY__)
+  apis.push_back( UNIX_CALLBACK_ONLY );
+#endif
 #if defined(__RTAUDIO_DUMMY__)
   apis.push_back( RTAUDIO_DUMMY );
 #endif
@@ -170,6 +174,10 @@ void RtAudio :: openRtApi( RtAudio::Api api )
 #if defined(__MACOSX_CORE__)
   if ( api == MACOSX_CORE )
     rtapi_ = new RtApiCore();
+#endif
+#if defined(__UNIX_CALLBACK_ONLY__)
+  if ( api == UNIX_CALLBACK_ONLY )
+    rtapi_ = new RtApiUnixCallback();
 #endif
 #if defined(__RTAUDIO_DUMMY__)
   if ( api == RTAUDIO_DUMMY )
@@ -416,7 +424,7 @@ double RtApi :: getStreamTime( void )
   then = stream_.lastTickTimestamp;
   return stream_.streamTime +
     ((now.tv_sec + 0.000001 * now.tv_usec) -
-     (then.tv_sec + 0.000001 * then.tv_usec));     
+     (then.tv_sec + 0.000001 * then.tv_usec));
 #else
   return stream_.streamTime;
 #endif
@@ -1833,7 +1841,7 @@ bool RtApiCore :: callbackEvent( AudioDeviceID deviceId,
           channelsLeft -= streamChannels;
         }
       }
-      
+
       if ( stream_.doConvertBuffer[1] ) { // convert from our internal "device" buffer
         convertBuffer( stream_.userBuffer[1],
                        stream_.deviceBuffer,
@@ -2724,7 +2732,7 @@ RtApiAsio :: RtApiAsio()
   // CoInitialize beforehand, but it must be for appartment threading
   // (in which case, CoInitilialize will return S_FALSE here).
   coInitialized_ = false;
-  HRESULT hr = CoInitialize( NULL ); 
+  HRESULT hr = CoInitialize( NULL );
   if ( FAILED(hr) ) {
     errorText_ = "RtApiAsio::ASIO requires a single-threaded appartment. Call CoInitializeEx(0,COINIT_APARTMENTTHREADED)";
     error( RtAudioError::WARNING );
@@ -3175,7 +3183,7 @@ bool RtApiAsio :: probeDeviceOpen( unsigned int device, StreamMode mode, unsigne
     errorText_ = errorStream_.str();
     goto error;
   }
-  buffersAllocated = true;  
+  buffersAllocated = true;
   stream_.state = STREAM_STOPPED;
 
   // Set flags for buffer conversion.
@@ -3649,13 +3657,13 @@ static long asioMessages( long selector, long value, void* /*message*/, double* 
 
 static const char* getAsioErrorString( ASIOError result )
 {
-  struct Messages 
+  struct Messages
   {
     ASIOError value;
     const char*message;
   };
 
-  static const Messages m[] = 
+  static const Messages m[] =
     {
       {   ASE_NotPresent,    "Hardware input or output is not present or available." },
       {   ASE_HWMalfunction,  "Hardware is malfunctioning." },
@@ -5115,7 +5123,7 @@ Exit:
 #if defined(__WINDOWS_DS__) // Windows DirectSound API
 
 // Modified by Robin Davies, October 2005
-// - Improvements to DirectX pointer chasing. 
+// - Improvements to DirectX pointer chasing.
 // - Bug fix for non-power-of-two Asio granularity used by Edirol PCR-A30.
 // - Auto-call CoInitialize for DSOUND and ASIO platforms.
 // Various revisions for RtAudio 4.0 by Gary Scavone, April 2007
@@ -5157,7 +5165,7 @@ struct DsHandle {
   void *id[2];
   void *buffer[2];
   bool xrun[2];
-  UINT bufferPointer[2];  
+  UINT bufferPointer[2];
   DWORD dsBufferSize[2];
   DWORD dsPointerLeadTime[2]; // the number of bytes ahead of the safe pointer to lead by.
   HANDLE condition;
@@ -6005,7 +6013,7 @@ void RtApiDs :: startStream()
   // Increase scheduler frequency on lesser windows (a side-effect of
   // increasing timer accuracy).  On greater windows (Win2K or later),
   // this is already in effect.
-  timeBeginPeriod( 1 ); 
+  timeBeginPeriod( 1 );
 
   buffersRolling = false;
   duplexPrerollBytes = 0;
@@ -6326,7 +6334,7 @@ void RtApiDs :: callbackEvent()
   }
 
   if ( stream_.mode == OUTPUT || stream_.mode == DUPLEX ) {
-    
+
     LPDIRECTSOUNDBUFFER dsBuffer = (LPDIRECTSOUNDBUFFER) handle->buffer[0];
 
     if ( handle->drainCounter > 1 ) { // write zeros to the output stream
@@ -6393,7 +6401,7 @@ void RtApiDs :: callbackEvent()
     }
 
     if ( dsPointerBetween( nextWritePointer, safeWritePointer, currentWritePointer, dsBufferSize )
-         || dsPointerBetween( endWrite, safeWritePointer, currentWritePointer, dsBufferSize ) ) { 
+         || dsPointerBetween( endWrite, safeWritePointer, currentWritePointer, dsBufferSize ) ) {
       // We've strayed into the forbidden zone ... resync the read pointer.
       handle->xrun[0] = true;
       nextWritePointer = safeWritePointer + handle->dsPointerLeadTime[0] - bufferBytes;
@@ -6467,14 +6475,14 @@ void RtApiDs :: callbackEvent()
     if ( safeReadPointer < (DWORD)nextReadPointer ) safeReadPointer += dsBufferSize; // unwrap offset
     DWORD endRead = nextReadPointer + bufferBytes;
 
-    // Handling depends on whether we are INPUT or DUPLEX. 
+    // Handling depends on whether we are INPUT or DUPLEX.
     // If we're in INPUT mode then waiting is a good thing. If we're in DUPLEX mode,
     // then a wait here will drag the write pointers into the forbidden zone.
-    // 
-    // In DUPLEX mode, rather than wait, we will back off the read pointer until 
-    // it's in a safe position. This causes dropouts, but it seems to be the only 
-    // practical way to sync up the read and write pointers reliably, given the 
-    // the very complex relationship between phase and increment of the read and write 
+    //
+    // In DUPLEX mode, rather than wait, we will back off the read pointer until
+    // it's in a safe position. This causes dropouts, but it seems to be the only
+    // practical way to sync up the read and write pointers reliably, given the
+    // the very complex relationship between phase and increment of the read and write
     // pointers.
     //
     // In order to minimize audible dropouts in DUPLEX mode, we will
@@ -6525,7 +6533,7 @@ void RtApiDs :: callbackEvent()
           error( RtAudioError::SYSTEM_ERROR );
           return;
         }
-      
+
         if ( safeReadPointer < (DWORD)nextReadPointer ) safeReadPointer += dsBufferSize; // unwrap offset
       }
     }
@@ -7735,7 +7743,7 @@ void RtApiAlsa :: stopStream()
   AlsaHandle *apiInfo = (AlsaHandle *) stream_.apiHandle;
   snd_pcm_t **handle = (snd_pcm_t **) apiInfo->handles;
   if ( stream_.mode == OUTPUT || stream_.mode == DUPLEX ) {
-    if ( apiInfo->synchronized ) 
+    if ( apiInfo->synchronized )
       result = snd_pcm_drop( handle[0] );
     else
       result = snd_pcm_drain( handle[0] );
@@ -8203,7 +8211,7 @@ void RtApiPulse::callbackEvent( void )
     else
       bytes = stream_.nUserChannels[INPUT] * stream_.bufferSize *
         formatBytes( stream_.userFormat );
-            
+
     if ( pa_simple_read( pah->s_rec, pulse_in, bytes, &pa_error ) < 0 ) {
       errorStream_ << "RtApiPulse::callbackEvent: audio read error, " <<
         pa_strerror( pa_error ) << ".";
@@ -8479,7 +8487,7 @@ bool RtApiPulse::probeDeviceOpen( unsigned int device, StreamMode mode,
 
   stream_.state = STREAM_STOPPED;
   return true;
- 
+
  error:
   if ( pah && stream_.callbackInfo.isRunning ) {
     pthread_cond_destroy( &pah->runnable_cv );
@@ -9449,6 +9457,271 @@ static void *ossCallbackHandler( void *ptr )
 }
 
 //******************** End of __LINUX_OSS__ *********************//
+#endif
+
+#if defined(__UNIX_CALLBACK_ONLY__)
+
+#include <unistd.h>
+
+  // A structure to hold various information related to the ALSA API
+  // implementation.
+struct CallbackHandle {
+  bool synchronized;
+  bool xrun[2];
+  pthread_cond_t runnable_cv;
+  bool runnable;
+
+  CallbackHandle()
+    : synchronized(false), runnable(false) { xrun[0] = false, xrun[1] = false; }
+};
+
+static void *unixCallbackHandler( void * ptr );
+
+RtApiUnixCallback :: ~RtApiUnixCallback()
+{
+  if ( stream_.state != STREAM_CLOSED ) closeStream();
+}
+
+bool RtApiUnixCallback :: probeDeviceOpen( unsigned int /*device*/, StreamMode /*mode*/, unsigned int /*channels*/,
+                                   unsigned int /*firstChannel*/, unsigned int /*sampleRate*/,
+                                   RtAudioFormat /*format*/, unsigned int *bufferSize,
+                                   RtAudio::StreamOptions *options )
+
+{
+  stream_.userBuffer[0] = 0; // to make sure these aren't used
+  stream_.userBuffer[1] = 0;
+  stream_.deviceBuffer = 0;
+  stream_.bufferSize = *bufferSize;
+
+  // Allocate the ApiHandle if necessary and then save.
+  CallbackHandle *apiInfo = 0;
+  if ( !stream_.apiHandle ) {
+    try {
+      apiInfo = new CallbackHandle;
+    }
+    catch ( std::bad_alloc& ) {
+      errorText_ = "RtApiUnixCallback::probeDeviceOpen: error allocating CallbackHandle memory.";
+      goto error;
+    }
+
+    if ( pthread_cond_init( &apiInfo->runnable_cv, 0 ) ) {
+      errorText_ = "RtApiUnixCallback::probeDeviceOpen: error initializing pthread condition variable.";
+      goto error;
+    }
+
+    stream_.apiHandle = apiInfo;
+  }
+  else {
+    apiInfo = static_cast<CallbackHandle *>( stream_.apiHandle );
+  }
+
+  stream_.state = STREAM_STOPPED;
+
+  // Setup thread if necessary.
+  if ( stream_.mode != CALLBACK ) {
+    stream_.mode = CALLBACK;
+
+    // Setup callback thread.
+    stream_.callbackInfo.object = this;
+
+    // Set the thread attributes for joinable and realtime scheduling
+    // priority (optional).  The higher priority will only take affect
+    // if the program is run as root or suid. Note, under Linux
+    // processes with CAP_SYS_NICE privilege, a user can change
+    // scheduling policy and priority (thus need not be root). See
+    // POSIX "capabilities".
+    pthread_attr_t attr = {};
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
+#ifdef SCHED_RR // Undefined with some OSes (eg: NetBSD 1.6.x with GNU Pthread)
+    if (options && options->flags & RTAUDIO_SCHEDULE_REALTIME) {
+      // We previously attempted to increase the audio callback priority
+      // to SCHED_RR here via the attributes.  However, while no errors
+      // were reported in doing so, it did not work.  So, now this is
+      // done in the unixCallbackHandler function.
+      stream_.callbackInfo.doRealtime = true;
+      int priority = options->priority;
+      int min = sched_get_priority_min(SCHED_RR);
+      int max = sched_get_priority_max(SCHED_RR);
+      if (priority < min) priority = min;
+      else if (priority > max) priority = max;
+      stream_.callbackInfo.priority = priority;
+    }
+#endif
+
+    stream_.callbackInfo.isRunning = true;
+    int result = pthread_create(&stream_.callbackInfo.thread, &attr, unixCallbackHandler, &stream_.callbackInfo);
+    pthread_attr_destroy(&attr);
+    if (result) {
+      stream_.callbackInfo.isRunning = false;
+      errorText_ = "RtApiUnixCallback::error creating callback thread!";
+      goto error;
+    }
+  }
+
+  return SUCCESS;
+
+ error:
+  if ( apiInfo ) {
+    pthread_cond_destroy( &apiInfo->runnable_cv );
+    delete apiInfo;
+    stream_.apiHandle = 0;
+  }
+
+  stream_.state = STREAM_CLOSED;
+  return FAILURE;
+}
+
+void RtApiUnixCallback :: closeStream()
+{
+  if ( stream_.state == STREAM_CLOSED ) {
+    errorText_ = "RtApiUnixCallback::closeStream(): no open stream to close!";
+    error( RtAudioError::WARNING );
+    return;
+  }
+
+  CallbackHandle *apiInfo = static_cast<CallbackHandle *>( stream_.apiHandle );
+  stream_.callbackInfo.isRunning = false;
+  MUTEX_LOCK( &stream_.mutex );
+  if ( stream_.state == STREAM_STOPPED ) {
+    apiInfo->runnable = true;
+    pthread_cond_signal( &apiInfo->runnable_cv );
+  }
+  MUTEX_UNLOCK( &stream_.mutex );
+  pthread_join( stream_.callbackInfo.thread, 0 );
+
+  if ( stream_.state == STREAM_RUNNING ) {
+    stream_.state = STREAM_STOPPED;
+  }
+
+  if ( apiInfo ) {
+    pthread_cond_destroy( &apiInfo->runnable_cv );
+    delete apiInfo;
+    stream_.apiHandle = 0;
+  }
+
+  stream_.mode = UNINITIALIZED;
+  stream_.state = STREAM_CLOSED;
+}
+
+void RtApiUnixCallback :: startStream()
+{
+  verifyStream();
+  if ( stream_.state == STREAM_RUNNING ) {
+    errorText_ = "RtApiUnixCallback::startStream(): the stream is already running!";
+    error( RtAudioError::WARNING );
+    return;
+  }
+
+  MUTEX_LOCK( &stream_.mutex );
+
+  CallbackHandle *apiInfo = static_cast<CallbackHandle *>( stream_.apiHandle );
+
+  stream_.state = STREAM_RUNNING;
+
+  apiInfo->runnable = true;
+  pthread_cond_signal( &apiInfo->runnable_cv );
+  MUTEX_UNLOCK( &stream_.mutex );
+}
+
+void RtApiUnixCallback :: stopStream()
+{
+  verifyStream();
+  if ( stream_.state == STREAM_STOPPED ) {
+    errorText_ = "RtApiUnixCallback::stopStream(): the stream is already stopped!";
+    error( RtAudioError::WARNING );
+    return;
+  }
+
+  stream_.state = STREAM_STOPPED;
+  MUTEX_LOCK( &stream_.mutex );
+
+  CallbackHandle *apiInfo = static_cast<CallbackHandle *>( stream_.apiHandle );
+
+  apiInfo->runnable = false; // fixes high CPU usage when stopped
+  MUTEX_UNLOCK( &stream_.mutex );
+}
+
+void RtApiUnixCallback :: abortStream()
+{
+  verifyStream();
+  if ( stream_.state == STREAM_STOPPED ) {
+    errorText_ = "RtApiUnixCallback::abortStream(): the stream is already stopped!";
+    error( RtAudioError::WARNING );
+    return;
+  }
+
+  stream_.state = STREAM_STOPPED;
+  MUTEX_LOCK( &stream_.mutex );
+
+  CallbackHandle *apiInfo = static_cast<CallbackHandle *>( stream_.apiHandle );
+
+  apiInfo->runnable = false; // fixes high CPU usage when stopped
+  MUTEX_UNLOCK( &stream_.mutex );
+}
+
+void RtApiUnixCallback :: callbackEvent()
+{
+  CallbackHandle *apiInfo = static_cast<CallbackHandle *>( stream_.apiHandle );
+  if ( stream_.state == STREAM_STOPPED ) {
+    MUTEX_LOCK( &stream_.mutex );
+    while ( !apiInfo->runnable ) {
+      pthread_cond_wait( &apiInfo->runnable_cv, &stream_.mutex );
+    }
+
+    if ( stream_.state != STREAM_RUNNING ) {
+      MUTEX_UNLOCK( &stream_.mutex );
+      return;
+    }
+    MUTEX_UNLOCK( &stream_.mutex );
+  }
+
+  if ( stream_.state == STREAM_CLOSED ) {
+    errorText_ = "RtApiUnixCallback::callbackEvent(): the stream is closed ... this shouldn't happen!";
+    error( RtAudioError::WARNING );
+    return;
+  }
+
+  int doStopStream = 0;
+  RtAudioCallback callback = reinterpret_cast<RtAudioCallback>( stream_.callbackInfo.callback );
+  double streamTime = getStreamTime();
+  RtAudioStreamStatus status = 0;
+  doStopStream = callback( stream_.userBuffer[0], stream_.userBuffer[1],
+                           stream_.bufferSize, streamTime, status, stream_.callbackInfo.userData );
+
+  if ( doStopStream == 2 ) {
+    abortStream();
+    return;
+  }
+
+  RtApi::tickStreamTime();
+  if ( doStopStream == 1 ) { this->stopStream(); }
+}
+
+static void *unixCallbackHandler( void *ptr )
+{
+  CallbackInfo *info = static_cast<CallbackInfo *>( ptr );
+  RtApiUnixCallback *object = static_cast<RtApiUnixCallback *>( info->object );
+  bool *isRunning = &info->isRunning;
+
+#ifdef SCHED_RR // Undefined with some OSes (eg: NetBSD 1.6.x with GNU Pthread)
+  if ( info->doRealtime ) {
+    pthread_t tID = pthread_self();	 // ID of this thread
+    sched_param prio = { info->priority }; // scheduling priority of thread
+    pthread_setschedparam( tID, SCHED_RR, &prio );
+  }
+#endif
+
+  while ( *isRunning ) {
+    pthread_testcancel();
+    object->callbackEvent();
+  }
+
+  pthread_exit( 0 );
+}
+
+//******************** End of __UNIX_CALLBACK_ONLY__ *********************//
 #endif
 
 
