@@ -18,8 +18,10 @@ target_link_libraries(record rtaudio_static)
 add_executable(duplex duplex.cpp)
 target_link_libraries(duplex rtaudio_static)
 
-add_executable(testcallbackonly testcallbackonly.cpp)
-target_link_libraries(testcallbackonly rtaudio_static)
+if (UNIX) # temporary until implemented for windows
+    add_executable(testcallbackonly testcallbackonly.cpp)
+    target_link_libraries(testcallbackonly rtaudio_static)
+endif ()
 
 add_executable(testall testall.cpp)
 target_link_libraries(testall rtaudio_static)
