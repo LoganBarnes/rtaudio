@@ -63,7 +63,7 @@ rtaudio_t rtaudio_create(rtaudio_api_t api) {
     audio->audio = new RtAudio((RtAudio::Api)api);
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
   }
   return audio;
 }
@@ -92,7 +92,7 @@ rtaudio_device_info_t rtaudio_get_device_info(rtaudio_t audio, int i) {
     result.is_default_input = info.isDefaultInput;
     result.native_formats = info.nativeFormats;
     result.preferred_sample_rate = info.preferredSampleRate;
-    strncpy(result.name, info.name.c_str(), sizeof(result.name) - 1);
+    strncpy_s(result.name, sizeof(result.name) - 1, info.name.c_str(), sizeof(info.name.c_str()));
     for (unsigned int j = 0; j < info.sampleRates.size(); j++) {
       if (j < sizeof(result.sample_rates) / sizeof(result.sample_rates[0])) {
         result.sample_rates[j] = info.sampleRates[j];
@@ -100,7 +100,7 @@ rtaudio_device_info_t rtaudio_get_device_info(rtaudio_t audio, int i) {
     }
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
   }
   return result;
 }
@@ -167,7 +167,7 @@ int rtaudio_open_stream(rtaudio_t audio,
     return 0;
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
     return -1;
   }
 }
@@ -180,7 +180,7 @@ int rtaudio_start_stream(rtaudio_t audio) {
     audio->audio->startStream();
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
   }
   return 0;
 }
@@ -191,7 +191,7 @@ int rtaudio_stop_stream(rtaudio_t audio) {
     audio->audio->stopStream();
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
   }
   return 0;
 }
@@ -202,7 +202,7 @@ int rtaudio_abort_stream(rtaudio_t audio) {
     audio->audio->abortStream();
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
   }
   return 0;
 }
@@ -221,7 +221,7 @@ double rtaudio_get_stream_time(rtaudio_t audio) {
     return audio->audio->getStreamTime();
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
     return 0;
   }
 }
@@ -232,7 +232,7 @@ void rtaudio_set_stream_time(rtaudio_t audio, double time) {
     audio->audio->setStreamTime(time);
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
   }
 }
 
@@ -242,7 +242,7 @@ int rtaudio_get_stream_latency(rtaudio_t audio) {
     return audio->audio->getStreamLatency();
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
     return -1;
   }
 }
@@ -252,7 +252,7 @@ unsigned int rtaudio_get_stream_sample_rate(rtaudio_t audio) {
     return audio->audio->getStreamSampleRate();
   } catch (RtAudioError &err) {
     audio->has_error = 1;
-    strncpy(audio->errmsg, err.what(), sizeof(audio->errmsg) - 1);
+    strncpy_s(audio->errmsg, sizeof(audio->errmsg) - 1, err.what(), sizeof(err.what()));
     return -1;
   }
 }
