@@ -162,7 +162,7 @@ int main( int argc, char *argv[] )
   }
 
   // Now write the entire data to the file.
-  fopen_s( &fd, "record.raw", "wb" ); // TODO: error checking?
+  fd = std::fopen( "record.raw", "wb" ); // TODO: error checking?
   fwrite( data.buffer, sizeof( MY_TYPE ), data.totalFrames * channels, fd );
   fclose( fd );
 

@@ -113,7 +113,7 @@ int main( int argc, char *argv[] )
 
   OutputData data;
 
-  if (fopen_s( &(data.fd), file, "rb" ) != 0) {
+  if ( ( data.fd = std::fopen( file, "rb" ) ) == nullptr) {
     std::cout << "Unable to find or open file!\n";
     exit( 1 );
   }
